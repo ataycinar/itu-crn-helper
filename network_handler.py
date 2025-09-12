@@ -2,9 +2,11 @@ import requests
 from fake_useragent import UserAgent
 from bs4 import BeautifulSoup
 import re
+import logger
 
 ua = UserAgent()
 random_ua = ua.random
+
 
 # getToken function #
 # parameters: ITUGiris username/email , ITUGiris password #
@@ -39,8 +41,13 @@ def getToken(username,password):
     loginHeader= {'User-Agent' : random_ua} 
 
     # sending user name and password for login. # # !!! 'cookieCheck' is mandatory and used for acknowledging with ITU Giris system that cookies will be used from now on !!! #
+    
     loginRequest = requests.post(loginUrl, data=loginData, headers=loginHeader, cookies={'cookieCheck' : 'true'}, allow_redirects=False) 
     
+    if not 'Location' in loginRequest.headers:
+        logger.error('Kullanıcı adı veya şifre hatalı')
+        return None
+
     # got a url to be redirected back to OBS again. #
     obsRedirectUrl=loginRequest.headers['Location']
 
@@ -87,8 +94,7 @@ def getToken(username,password):
 # sends the provided CRNs both for adding and removing to the API endpoint without any delay. so if it gets called it will be sent to server immediately depending on your connection and server load #
 # parameters: 'Authorization' header as string, **CRNs you would like to add as a list of strings, **CRNs you would like to remove as a list of strings #
 # important !!! : added and removed CRN lists are both optional but one must be provided to function correctly #
-# output: response as string #
-# example output : {"ecrnResultList":[],"scrnResultList":[{"crn":"1111","operationFinished":true.... #
+# output: response object -to allow parsing of both response text and headers- #
 
 def courseRequest(token,eCRN=[],sCRN=[]):
 
@@ -103,11 +109,15 @@ def courseRequest(token,eCRN=[],sCRN=[]):
     # sending the request without any delay #
     response = requests.post(apiEndpoint,json=crnData,headers=authHeader)
 
-    return response.text
+    return response
 
 
 # getLastRequests function #
-# gets 
+# gets last 50 requests for course registration requests #
+# HAS A DELAY OF NEARLY 60 SECS #
+# means that any request that will be made will appear after 60 seconds #
+# parameters : 'Authorization' header as string #
+# output: response as json #
 
 def getLastRequests(token):
     
@@ -115,8 +125,22 @@ def getLastRequests(token):
 
     header = {'Authorization':token , 'User-Agent':random_ua}
 
-    responsedata = requests.get(apiEndpoint,headers=header)
+    responseData = requests.get(apiEndpoint,headers=header)
 
-    response = responsedata.json()
+    response = responseData.json()
 
+    return response
+
+def getPersonalInfo(token):
+
+    apiEndpoint = 'https://obs.itu.edu.tr/api/ogrenci/KisiselBilgiler/'
+
+    header = {'Authorization':token , 'User-Agent':random_ua}
+
+    responseData = requests.get(apiEndpoint,headers=header)
+    responseData.encoding = 'utf-8'
+    if responseData.status_code == 401:
+        logger.error('HTTP 401 Error Token hatalı olabilir')
+        return None
+    response = responseData.json()['kisiselBilgiler']
     return response
