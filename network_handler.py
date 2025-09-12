@@ -6,29 +6,6 @@ import re
 ua = UserAgent()
 random_ua = ua.random
 
-# courseRequest function #
-# sends the provided CRNs both for adding and removing to the API endpoint without any delay. so if it gets called it will be sent to server immediately depending on your connection and server load #
-# parameters: 'Authorization' header as string, **CRNs you would like to add as a list of strings, **CRNs you would like to remove as a list of strings #
-# important !!! : added and removed CRN lists are both optional but one must be provided to function correctly #
-# output: response as string #
-# example output : {"ecrnResultList":[],"scrnResultList":[{"crn":"1111","operationFinished":true.... #
-
-def courseRequest(token,eCRN=[],sCRN=[]):
-
-    apiEndpoint = 'https://obs.itu.edu.tr/api/ders-kayit/v21'
-
-    # constructing the data for the api requests according to the provided eCRN and sCRN #
-    crnData = {'ECRN':eCRN , 'SCRN':sCRN} 
-
-    # defining the 'authorization' header as the provided bearer token and setting the user-agent #
-    authHeader = {'Authorization' : token, 'User-Agent': random_ua}  
-
-    # sending the request without any delay #
-    response = requests.post(apiEndpoint,json=crnData,headers=authHeader)
-
-    return response.text
-
-
 # getToken function #
 # parameters: ITUGiris username/email , ITUGiris password #
 # output: 'Authorization' header for provided user credentials #
@@ -104,3 +81,42 @@ def getToken(username,password):
 
     # ending of function #
     return jwt
+
+
+# courseRequest function #
+# sends the provided CRNs both for adding and removing to the API endpoint without any delay. so if it gets called it will be sent to server immediately depending on your connection and server load #
+# parameters: 'Authorization' header as string, **CRNs you would like to add as a list of strings, **CRNs you would like to remove as a list of strings #
+# important !!! : added and removed CRN lists are both optional but one must be provided to function correctly #
+# output: response as string #
+# example output : {"ecrnResultList":[],"scrnResultList":[{"crn":"1111","operationFinished":true.... #
+
+def courseRequest(token,eCRN=[],sCRN=[]):
+
+    apiEndpoint = 'https://obs.itu.edu.tr/api/ders-kayit/v21'
+
+    # constructing the data for the api requests according to the provided eCRN and sCRN #
+    crnData = {'ECRN':eCRN , 'SCRN':sCRN} 
+
+    # defining the 'authorization' header as the provided bearer token and setting the user-agent #
+    authHeader = {'Authorization' : token, 'User-Agent': random_ua}  
+
+    # sending the request without any delay #
+    response = requests.post(apiEndpoint,json=crnData,headers=authHeader)
+
+    return response.text
+
+
+# getLastRequests function #
+# gets 
+
+def getLastRequests(token):
+    
+    apiEndpoint = 'https://obs.itu.edu.tr/api/ogrenci/Sinif/DersKayitIstekleri'
+
+    header = {'Authorization':token , 'User-Agent':random_ua}
+
+    responsedata = requests.get(apiEndpoint,headers=header)
+
+    response = responsedata.json()
+
+    return response
