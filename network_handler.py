@@ -144,3 +144,15 @@ def getPersonalInfo(token):
         return None
     response = responseData.json()['kisiselBilgiler']
     return response
+
+def checkRegistrationTime(token):
+
+    apiEndpoint = 'https://obs.itu.edu.tr/api/ogrenci/Takvim/KayitZamaniKontrolu'
+
+    header = {'Authorization':token , 'User-Agent':random_ua}
+
+    responseData = requests.get(apiEndpoint,headers=header)
+
+    responseData.encoding = 'utf-8'
+
+    return responseData.json()['kayitZamanKontrolResult']
