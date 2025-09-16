@@ -3,6 +3,7 @@ from fake_useragent import UserAgent
 from bs4 import BeautifulSoup
 import re
 import logger
+from datetime import datetime, timedelta
 
 ua = UserAgent()
 random_ua = ua.random
@@ -142,8 +143,7 @@ def getPersonalInfo(token):
     if responseData.status_code == 401:
         logger.error('HTTP 401 Error Token hatalı olabilir')
         return None
-    response = responseData.json()['kisiselBilgiler']
-    return response
+    return responseData
 
 def checkRegistrationTime(token):
 
@@ -155,4 +155,30 @@ def checkRegistrationTime(token):
 
     responseData.encoding = 'utf-8'
 
-    return responseData.json()['kayitZamanKontrolResult']
+    return responseData.json()
+
+def checkToken(token):
+
+    apiEndpoint = 'https://obs.itu.edu.tr/api/ogrenci/OgrenciYetkiListesi'
+
+    header = {'Authorization':token , 'User-Agent':random_ua}
+
+    try:
+        responseData = requests.get(apiEndpoint,headers=header)
+        responseData.encoding = 'utf-8'
+        jsonData = responseData.json()
+        if 'ogrenci' in str(jsonData['kisiYetkiListesi']):
+            return True
+    except:
+        return False
+    
+
+def getServerTime():
+    url = 'https://obs.itu.edu.tr/'
+    try:
+        response = requests.get(url,allow_redirects=False)
+        gmtDate = datetime.strptime(response.headers['Date'], "%a, %d %b %Y %H:%M:%S %Z")
+        trDate = gmtDate + timedelta(hours=3)
+        return trDate.strftime("%Y-%m-%d %H:%M:%S")
+    except:
+        return response.text
