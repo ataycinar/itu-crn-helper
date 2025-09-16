@@ -128,13 +128,20 @@ def manualDate():
 def manualTrigger():
     print("Dersleri yollamak istediğinizde herhangi bir tuşa basabilirsiniz. ESC'ye basarak CRN'leri değiştirebilir, tarih girip otomatik olarak yollayabilirsiniz.")
     while True:
-        if keyboard.is_pressed():
-            request = net.courseRequest(token,addCRN,dropCRN)
-            print('İSTEK GÖNDERİLDİ')
-            print(request.json())
-            print(addCRN,dropCRN)
-            print(token)
-            return True
+        event = keyboard.read_event()
+        if event.event_type == keyboard.KEY_DOWN:
+            if event.name == 'esc':
+                print("ESC'ye bastınız. CRN'leri değiştirmek veya tarih girmek için ana menüye dönebilirsiniz.")
+                return False
+            else:
+                request = net.courseRequest(token, addCRN, dropCRN)
+                print('İSTEK GÖNDERİLDİ')
+                try:
+                    print(request.json())
+                except Exception:
+                    print(request.text)
+                print(addCRN, dropCRN)
+                return True
 
 def autoTrigger(regDate):
     print('kayıt saati bekleniyor...')
@@ -153,7 +160,6 @@ def autoTrigger(regDate):
                 print('HATAAHATAAA : ', request.text)
                 return False
             print(addCRN,dropCRN)
-            print(token)
             return True
         t.sleep(0.5)
 
