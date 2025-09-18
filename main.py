@@ -273,7 +273,7 @@ def main():
         print('hata, sınıf bilgisi alınamadı')
     match sinif:
         case 1:
-            regDate = '2025-09-17 22:18:30'
+            regDate = '2025-09-19 14:00:00'
         case 2:
             regDate = '2025-09-19 10:00:00'
         case 3:
