@@ -46,7 +46,6 @@ def getToken(username,password):
     loginRequest = requests.post(loginUrl, data=loginData, headers=loginHeader, cookies={'cookieCheck' : 'true'}, allow_redirects=False) 
     
     if not 'Location' in loginRequest.headers:
-        logger.error('Kullanıcı adı veya şifre hatalı')
         return None
 
     # got a url to be redirected back to OBS again. #
@@ -158,18 +157,16 @@ def checkRegistrationTime(token):
     return responseData.json()
 
 def checkToken(token):
-
     apiEndpoint = 'https://obs.itu.edu.tr/api/ogrenci/OgrenciYetkiListesi'
-
     header = {'Authorization':token , 'User-Agent':random_ua}
-
-    try:
-        responseData = requests.get(apiEndpoint,headers=header)
-        responseData.encoding = 'utf-8'
-        jsonData = responseData.json()
-        if 'ogrenci' in str(jsonData['kisiYetkiListesi']):
-            return True
-    except:
+    responseData = requests.get(apiEndpoint,headers=header)
+    if responseData.status_code != 200:
+        return False
+    responseData.encoding = 'utf-8'
+    jsonData = responseData.json()
+    if 'ogrenci' in str(jsonData['kisiYetkiListesi']):
+        return True
+    else:
         return False
     
 
@@ -182,3 +179,27 @@ def getServerTime():
         return trDate.strftime("%Y-%m-%d %H:%M:%S")
     except:
         return response.text
+
+def getCRNinfo(token,crnList):
+    apiEndpoint = 'https://obs.itu.edu.tr/api/TaslakKontrolAPI/v1/'
+    crnData = {'ecrn':crnList}
+    header = {'Authorization':token , 'User-Agent':random_ua}
+    response = requests.post(apiEndpoint,headers=header,json=crnData)
+    try:
+        return response.json()['ecrnResultList']
+    except:
+        logger.error('OBS üzerinden bilgiler alınırken bir hata oldu.')
+        logger.debug(response.text)
+        return None
+    
+
+def isTaslakActive(token):
+    apiEndpoint = 'https://obs.itu.edu.tr/api/ogrenci/DersKayitTaslak/KayitZamaniKontrolu'
+    header = {'Authorization':token , 'User-Agent':random_ua}
+    try:
+        response = requests.get(apiEndpoint,headers=header)
+        return response.json()['kayitZamanKontrolResult']['ogrenciTaslakOlusturabilir']
+    except:
+        logger.error('Bir hata oldu.')
+        logger.debug('Taslak kayıt takvimi verisi alınamadı')
+        return False

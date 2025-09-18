@@ -3,51 +3,56 @@ import os
 import logger
 import time as t
 import pwinput
-import sys
 from datetime import datetime
 import keyboard
+import hashlib
 
 token = ''
-sinif = ''
-regDateEpoch = ''
 addCRN = []
 dropCRN = []
+errors = {
+    "VAL02": "Ders kaydı, 'Kayıt Zamanı Engeli' sebebiyle tamamlanamamıştır.",
+    "VAL03": "Ders, bu dönem alındığı için tekrar alınamamıştır.",
+    "VAL04": "Ders, ders planında bulunmadığı için alınamamıştır.",
+    "VAL05": "Ders, dönemlik kredi kısıtlaması sebebiyle alınamamıştır.",
+    "VAL06": "Ders, yeterli kontenjan olmadığı için alınamamıştır.",
+    "VAL07": "Dersten, daha önce AA alındığı için bu ders tekrar alınamamıştır.",
+    "VAL08": "Ders, dersi alabilen programlar arasında programınız olmadığı için alınamamıştır.",
+    "VAL09": "Ders, ders çakışması sebebiyle alınamamıştır",
+    "VAL10": "Derse bu dönem kayıtlı olmadığınız için işlem yapılamamıştır.",
+    "VAL11": "Ders, dersin ön şartları sağlanmadığı için alınamamıştır.",
+    "VAL12": "Ders, ilgili ders kayıt döneminde bulunmamaktadır.",
+    "VAL13": "Ders, geçici olarak devre dışı bırakılmıştır.",
+    "VAL14": "Sistem geçici olarak devre dışı bırakılmıştır.",
+    "VAL15": "Maksimum 12 adet CRN gönderebilirsiniz.",
+    "VAL16": "Şu an devam eden bir işleminiz bulunmaktadır, daha sonra tekrar deneyiniz.",
+    "VAL18": "Ders, etiket kısıtları sağlanmadığı için alınamamıştır.",
+    "VAL19": "Ders, lisans dersi olduğu için alınamamıştır.",
+    "VAL20": "Her dönem sadece 1 dersi terk edebilirsiniz.",
+    "VAL21": "İstek limitini aştınız. Lütfen 1 saat sonra tekrar deneyiniz.",
+    "VAL22": "Şu anki ders kayıt zamanı içerisinde dersten, daha önce CC ve üstü harf notu alındığı için bu ders yükseltmeye alınamaz."
+}
 
-#def saveToken(token):
-#    personalInfo = net.getPersonalInfo(token)
-#    if personalInfo == None: # if token is not valid #
-#        return False
-#    tcNo = personalInfo['kimlikNo'] # assuming getPersonalInfo(token) returned valid info #
-#    filename = f'{tcNo}.token' 
-#    path = f'tokens/{filename}'
-#    os.makedirs("tokens", exist_ok=True)
-#    with open(path , 'w') as file:
-#        file.write(token)
-#    logger.info(f'Token başarıyla kaydedildi. {path}')
-#    # token file could be saved with encryption #
-#    return path
-#
-#def readToken(path):
-#    with open(path , 'r') as file:
-#        return file.read()
-    
 def getCredentials():
+
     cls()
-    print("\nDikkat! Bu uygulama açık kaynak kodludur. Yani Github reposu üzerinden kodu inceleyip bilgilerinizi girmenin güvenli olup olmadığını inceleyebilirsiniz.")
+    print("Dikkat! Bu uygulama açık kaynak kodludur. Yani Github reposu üzerinden kodu inceleyip bilgilerinizi girmenin güvenli olup olmadığını inceleyebilirsiniz.")
     print("https://github.com/ataycinar/itu-auto-crn\n")
+    t.sleep(3)
+    cls()
 
     while True:
-        t.sleep(1.5)
         print('Lütfen İTÜ mailinizi girin')
         email = input('İTÜ Mail:').strip()
-        # Normalize Turkish-specific characters
         email = email.replace('İ', 'I').replace('ı', 'i').casefold()
         if email == '':
+            logger.debug('Kullanıcı boş İTÜ Mail girdi.')
             print('İTÜ Maili girilmedi, lütfen tekrar deneyin.')
         elif not email.endswith('@itu.edu.tr'):
+            logger.debug(f'Kullanıcı sonu @itu.edu.tr ile bitmeyen İTÜ Mail girdi. Girilen mail : {email}')
             print('İTÜ Maili hatalı girildi lütfen tekrar kontrol edin')
-            t.sleep(1)
             print('Örnek bir İTÜ Mail : arican25@itu.edu.tr\n')
+            t.sleep(2)
         else:
             break
 
@@ -55,64 +60,93 @@ def getCredentials():
         print('Lütfen şifrenizi girin.')
         password = pwinput.pwinput()
         if password == '':
+            logger.debug('Kullanıcı boş şifre girdi.')
             print('Parola girişi yapılmadı lütfen tekrar deneyin.')
         else:
             break
+    hashedPass = hashlib.sha256(password.encode()).hexdigest()
+    logger.debug('Şifre hashlendi')
+    logger.debug(f'Kullanıcı bilgileri alındı İTÜ Mail: {email} - Şifre SHA256:{hashedPass}')
     return email , password
 
 def getTokenManual():
+    logger.debug('Manuel olarak token alınıyor.')
     while True:
         print("Lütfen tokeni girin. Örnek bir token : Bearer mYXSUtXw7CgB2xnr... ")
         global token
         token = input()
         if token == '':
+            logger.debug('Boş token girildi.')
             print('Lütfen bir token girin')
             t.sleep(2)
+            cls()
         elif not token.startswith('Bearer '):
+            logger.debug(f'Kullanıcının girdisinde "Bearer" yok. Girdi: {token}')
             print("Tokenin başında 'Bearer' olduğundan emin olun")
         else:
+            t.sleep(10)
             if net.checkToken(token):
-                return token
+                logger.info('Token geçerli.')
+                break
             else:
-                print("Token geçerli değil. Lütfen kontrol edin")
+                logger.info('Token geçersiz.')
+                t.sleep(2)
+                cls()
 
-def getCRNinput():
-
-    validCRN = []
-    invalidCRN = []
-
+def getCRNinput(addRemove):
     while True:
-        CRNinput = input('\nCRN:')
-        if CRNinput == '.':
-            break
-        try:
-            CRNinput = int(CRNinput)
-        except Exception as e:
-            print('\nCRN rakamlardan oluşmalıdır. Lütfen tekrar deneyin.')
+        crnListString = input("CRN'ler : ")
+        crnList = crnListString.split()
+        for crn in crnList:
+            try:
+                int(crn)
+            except:
+                logger.info(f"Geçersiz CRN : '{crn}'")
+                crnList.remove(crn)
+        for crn in crnList:
+            if len(crn)<4 or len(crn)>5:
+                logger.error(f'{crn} - Geçersiz CRN silindi. CRN 4 yada 5 rakamdan oluşmalıdır.')
+                crnList.remove(crn)
+        if len(crnList) == 0:
+            print('Lütfen en az 1 tane geçerli CRN girin')
             continue
-        if len(str(CRNinput))>5 or len(str(CRNinput))<4:
-            invalidCRN.append(str(CRNinput))
+        break
+    if net.isTaslakActive(token) and addRemove == 'add':
+        crnData = net.getCRNinfo(token,crnList)
+        if crnData == None:
+            logger.info("Girilen CRN'ler olduğu gibi kullanılacak.")
         else:
-            validCRN.append(str(CRNinput))
-
-    if len(invalidCRN) != 0:
-        print("Geçersiz CRN değerleri girildi. CRN'ler 4 veya 5 rakamdan oluşmalıdır. Bu geçersiz değerler yine de kullanılsın mı ?")
-        t.sleep(1)
-        print("Geçersiz olan CRN'ler : ", invalidCRN)
-        t.sleep(2)
-        while True:
-            print("[E]vet, geçersiz CRN'ler kullanılsın.       [H]ayır, geçersiz CRN'leri sil.")
-            t.sleep(2)
-            ans = input().lower()
-            if not ans in ['e','h']:
-                print('Lütfen geçerli bir cevap girin. E veya H')
-            match ans:
-                case 'e':
-                    validCRN += invalidCRN
-                    break
-                case 'h':
-                    break
-    return validCRN
+            for crn in crnData:
+                if crn['statusCode'] == 0:
+                    logger.info(f"Geçerli CRN : {crn['crn']} - {crn['dersKodu']} - {crn['dersAdi']}")
+                else:
+                    errorCode = crn['taslakKontrolResultList'][0]['resultCode']
+                    errorData = crn['taslakKontrolResultList'][0]['resultData']
+                    if errorCode in errors.keys():
+                        logger.error(f"{crn['crn']} nolu CRN alınamaz. Sebep : {errors[errorCode]}")
+                    else:
+                        logger.error(f"Taslak verilerine göre bilinmeyen bir sebeple {errorCode} nolu CRN'yi alamazsınız.")
+                    logger.debug(f"HATA KODU : {errorCode}")
+                    logger.debug(f"HATA DETAYI : {errorData}")
+                    while True:
+                        print("Yine de bu CRN'yi kullanmak ister misiniz ? [E]vet / [Hayır]")
+                        ans = input()
+                        if ans in ['E', 'e']:
+                            logger.info(f"Geçersiz CRN kullanılıyor. {crn}")
+                            t.sleep(3)
+                            break
+                        elif ans in ['H', 'h']:
+                            crnList.remove(crn['crn'])
+                            logger.info(f'Geçersiz CRN silindi. {crn['crn']}')
+                            t.sleep(2)
+                            break
+                        else:
+                            print('Lütfen geçerli bir cevap girin.')
+        return crnList
+    else:
+        logger.info('CRN girişi tamamlandı')
+        return crnList
+                        
 
 def manualDate():
     print('Lütfen kayıt tarihinizi şu formatta girin : YYYY-AA-GG SS:DD:SS')
@@ -155,9 +189,9 @@ def autoTrigger(regDate):
             request = net.courseRequest(token,addCRN,dropCRN)
             try:
                 jsonResp = request.json()
-                print(jsonResp)
+                logger.debug(jsonResp)
             except:
-                print('HATAAHATAAA : ', request.text)
+                logger.error(request.text)
                 return False
             print(addCRN,dropCRN)
             return True
@@ -188,7 +222,9 @@ def main():
                 token = net.getToken(email,password)
 
                 if token == None:
-                    print('Kullanıcı adı veya şifre yanlış.')
+                    cls()
+                    logger.error('Kullanıcı adı veya şifre yanlış.')
+                    t.sleep(3)
                     continue
                 else:
                     break
@@ -204,7 +240,7 @@ def main():
 
     print('Lütfen eklemek istediğiniz sınıfların CRNlerini teker teker yazıp entera basın. Nokta yazıp entera basarsanız CRN girişi tamamlanır. Eğer kayıt esnasında (add/drop) sınıf eklemek istemiyorsanız nokta yazıp entera basabilirsiniz.\n')
 
-    addCRN = getCRNinput()
+    addCRN = getCRNinput('add')
 
     t.sleep(2)
 
@@ -218,15 +254,15 @@ def main():
 
     t.sleep(2)
 
-    dropCRN = getCRNinput()
+    dropCRN = getCRNinput('remove')
 
     t.sleep(2)
 
     print('\nCRN girişleri başarıyla tamamlandı\n')
     t.sleep(1)
     cls()
-    print("\nEklenecek olan CRN'ler : " , addCRN)
-    print("Bırakılacak olan CRN'ler : " , dropCRN)
+    logger.info(f"Eklenecek olan CRN'ler : {addCRN}")
+    logger.info(f"Bırakılacak olan CRN'ler : {dropCRN}")
 
     t.sleep(3)
 
@@ -237,7 +273,7 @@ def main():
         print('hata, sınıf bilgisi alınamadı')
     match sinif:
         case 1:
-            regDate = '2025-09-16 14:00:00'
+            regDate = '2025-09-17 22:18:30'
         case 2:
             regDate = '2025-09-19 10:00:00'
         case 3:
@@ -261,6 +297,5 @@ def main():
                 autoTrigger(regDate)
             case '3':
                 manualTrigger()
-
 
 main()

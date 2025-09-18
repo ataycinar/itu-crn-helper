@@ -10,12 +10,19 @@ timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")  # safe format
 logFile = os.path.join("logs", timestamp + ".log")
 print(logFile)
 
+# Create handlers with different log levels
+file_handler = logging.FileHandler(logFile, encoding="utf-8")
+file_handler.setLevel(logging.DEBUG)  # File gets all logs including debug
+
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)  # Console only gets INFO and above
+
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # Root logger level (lowest level)
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler(logFile ,encoding="utf-8"),
-        logging.StreamHandler()
+        file_handler,
+        console_handler
     ]
 )
 
