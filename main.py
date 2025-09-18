@@ -107,9 +107,6 @@ def getCRNinput(addRemove):
             if len(crn)<4 or len(crn)>5:
                 logger.error(f'{crn} - Geçersiz CRN silindi. CRN 4 yada 5 rakamdan oluşmalıdır.')
                 crnList.remove(crn)
-        if len(crnList) == 0:
-            print('Lütfen en az 1 tane geçerli CRN girin')
-            continue
         break
     if net.isTaslakActive(token) and addRemove == 'add':
         crnData = net.getCRNinfo(token,crnList)
@@ -160,67 +157,70 @@ def manualDate():
             continue
 
 def manualTrigger():
-    print("Dersleri yollamak istediğinizde herhangi bir tuşa basabilirsiniz. ESC'ye basarak CRN'leri değiştirebilir, tarih girip otomatik olarak yollayabilirsiniz.")
+    print("Dersleri yollamak istediğinizde herhangi bir tuşa basabilirsiniz. ESC'ye basarak CRN'leri değiştirebilir ya da tarih girip otomatik olarak yollayabilirsiniz.")
     while True:
         event = keyboard.read_event()
         if event.event_type == keyboard.KEY_DOWN:
             if event.name == 'esc':
-                print("ESC'ye bastınız. CRN'leri değiştirmek veya tarih girmek için ana menüye dönebilirsiniz.")
-                return False
+                print("Manuel kayıt iptal edildi. [1] CRN'leri değiştirebilir ya da [2] Otomatik kayıt kullanabilirsiniz.")
+                ans = input()
+                return ans
             else:
                 request = net.courseRequest(token, addCRN, dropCRN)
-                print('İSTEK GÖNDERİLDİ')
+                logger.info('Ders kayıt isteği yollanıyor...')
                 try:
-                    print(request.json())
+                    logger.debug(request.json())
+                    return True
                 except Exception:
-                    print(request.text)
-                print(addCRN, dropCRN)
-                return True
+                    logger.debug(request.text)
+                    return False
 
 def autoTrigger(regDate):
-    print('kayıt saati bekleniyor...')
+    print('Kayıt saati bekleniyor...')
     regDate = datetime.strptime(regDate, "%Y-%m-%d %H:%M:%S")
     while True:
         serverTime = net.getServerTime()
-        print('server saati : ' , serverTime)
+        print('ÖBS Saati   :' , serverTime)
+        print('Kayıt Saati :' , regDate)
         serverTime = datetime.strptime(serverTime, "%Y-%m-%d %H:%M:%S")
         if serverTime >= regDate:
-            print('TIME HAS COME')
+            print('Kayıt vakti geldi. Ders kayıt isteği yollanıyor...')
             request = net.courseRequest(token,addCRN,dropCRN)
             try:
                 jsonResp = request.json()
                 logger.debug(jsonResp)
+                logger.info('Ders kayıt isteği başarı ile yollandı!')
             except:
-                logger.error(request.text)
+                logger.debug(request.text)
+                logger.error('Ders kayıt isteği yollanırken bir hata oluştu. Server ile alakalı bir durum olabilir. 3 Saniyede bir istek yollanmaya devam ediliyor...')
                 return False
             print(addCRN,dropCRN)
             return True
         t.sleep(0.5)
+        cls()
 
 def cls():
     os.system('cls' if os.name == 'nt' else 'clear')
+
 def main():
+
     global addCRN
     global dropCRN
     global token
     cls()
 
-    print("Merhaba, İTÜ OBS uygulamasına giriş yapmak için token'a ihtiyaç var.\n")
-    t.sleep(2)
+    print("Merhaba, İTÜ ÖBS uygulamasına giriş yapmak için bir token'a ihtiyaç var.\n")
+    t.sleep(3)
 
     while True:
-        print("\n[1] İTÜ mail ve şifre ile token'ı otomatik olarak çek.")
-        t.sleep(1)
-        print("[2] Manuel olarak JWT gir. (ne yaptığımı biliyorum)")
-        t.sleep(1)
+        cls()
+        print("[1] İTÜ mail ve şifre ile token'ı otomatik olarak çek.")
+        print("[2] Manuel olarak JWT gir.")
         print('Lütfen bir seçimde bulunun.\n')
-        t.sleep(1)
         match input():
             case '1':
                 email,password = getCredentials()
-                
                 token = net.getToken(email,password)
-
                 if token == None:
                     cls()
                     logger.error('Kullanıcı adı veya şifre yanlış.')
@@ -232,25 +232,25 @@ def main():
                 token = getTokenManual()
                 break
             case _:
-                print('Lütfen bir seçim yapın. 1 veya 2')
+                print('Lütfen bir seçim yapın. 1 veya 2.')
 
     t.sleep(2)
 
     cls()
 
-    print('Lütfen eklemek istediğiniz sınıfların CRNlerini teker teker yazıp entera basın. Nokta yazıp entera basarsanız CRN girişi tamamlanır. Eğer kayıt esnasında (add/drop) sınıf eklemek istemiyorsanız nokta yazıp entera basabilirsiniz.\n')
+    print("Eklemek istediğiniz CRN'leri aralarında birer boşluk bırakıp girin.\nEğer herhangi bir CRN eklemek istemiyorsanız boş bırakın.\n")
 
     addCRN = getCRNinput('add')
 
     t.sleep(2)
 
-    print('Eklencek olan CRN girişleri tamamlandı. Bırakılacak olanlara geçiliyor...\n')
+    print("Eklenecek olan CRN'ler tamamlandı. Bırakılacak olanlara geçiliyor...\n")
 
     t.sleep(2)
 
     cls()
 
-    print('Lütfen bırakmak istediğiniz sınıfların CRNlerini teker teker yazıp entera basın. Nokta yazıp entera basarsanız CRN girişi tamamlanır. Eğer kayıt esnasında (add/drop) sınıf bırakmak istemiyorsanız nokta yazıp entera basabilirsiniz.\n')
+    print("Bırakmak istediğiniz CRN'leri aralarında birer boşluk bırakıp girin.\nEğer herhangi bir CRN bırakmak istemiyorsanız boş bırakın.\n")
 
     t.sleep(2)
 
@@ -288,14 +288,13 @@ def main():
     if sinif in [1,2,3,4]:
         print('Normal kayıt tarihiniz : ',regDate)
         print('[1] Kayıt tarihi doğru. / [2] Başka bir tarih girmek istiyorum / [3] Manuel olarak dersleri zamanında yollamak istiyorum ')
-        ans = input('Seçim : ')
+        ans = input('')
         match ans:
             case '1':
                 autoTrigger(regDate)
             case '2':
                 regDate = manualDate()
                 autoTrigger(regDate)
-            case '3':
-                manualTrigger()
+
 
 main()
